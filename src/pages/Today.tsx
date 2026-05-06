@@ -11,7 +11,7 @@ import { Plus, Flame } from 'lucide-react';
 
 export default function Today() {
   const navigate = useNavigate();
-  const { user, getEntriesForDate, getDaySummary, deleteEntry } = useApp();
+  const { user, isDemo, logout, getEntriesForDate, getDaySummary, deleteEntry } = useApp();
   const today = new Date().toISOString().split('T')[0];
   const entries = getEntriesForDate(today);
   const summary = getDaySummary(today);
@@ -25,18 +25,33 @@ export default function Today() {
     navigate(`/add-food?meal=${meal}`);
   };
 
+  const handleExitDemo = () => {
+    logout();
+    navigate('/');
+  };
+
   return (
     <AppLayout>
       <div className="px-5 pt-6 pb-4 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm text-muted-foreground">{dateStr}</p>
             <h1 className="text-2xl font-bold text-foreground">Today</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Flame className="w-5 h-5 text-foreground" />
-            <span className="text-sm font-semibold text-foreground">FitLog</span>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
+              <Flame className="w-5 h-5 text-foreground" />
+              <span className="text-sm font-semibold text-foreground">FitLog</span>
+            </div>
+            {isDemo && (
+              <button
+                onClick={handleExitDemo}
+                className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
+              >
+                Exit demo
+              </button>
+            )}
           </div>
         </div>
 
