@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { UserProfile, DiaryEntry, Food, MealType, MacroTargets, FoodUnit, Goal, ActivityLevel, Sex } from '@/types';
-import { mockFoods, demoEntries, demoProfile } from '@/data/mockData';
+import { UserProfile, DiaryEntry, Food, MacroTargets, Goal, ActivityLevel, Sex } from '@/types';
+import { clearSession, loadAppState, persistDemoSession, persistStandardSession, updateCurrentModeState } from '@/services/appStorage';
 
 interface AppState {
   isAuthenticated: boolean;
@@ -61,68 +61,80 @@ function calculateTargets(profile: { sex: Sex; age: number; weight: number; heig
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>({
-    isAuthenticated: false,
-    isDemo: false,
-    user: null,
-    entries: [],
-    customFoods: [],
-    allFoods: mockFoods,
-  });
+  const [state, setState] = useState<AppState>(() => loadAppState());
 
   const login = useCallback((_email: string, _password: string) => {
     // TODO: Replace with Supabase auth
-    setState(s => ({ ...s, isAuthenticated: true, isDemo: false }));
+    persistStandardSession();
+    setState(loadAppState());
   }, []);
 
   const signup = useCallback((_email: string, _password: string) => {
     // TODO: Replace with Supabase auth
-    setState(s => ({ ...s, isAuthenticated: true, isDemo: false }));
+    persistStandardSession();
+    setState(loadAppState());
   }, []);
 
   const loginDemo = useCallback(() => {
-    setState(s => ({
-      ...s,
-      isAuthenticated: true,
-      isDemo: true,
-      user: demoProfile,
-      entries: demoEntries,
-    }));
+    persistDemoSession();
+    setState(loadAppState());
   }, []);
 
   const logout = useCallback(() => {
-    setState({ isAuthenticated: false, isDemo: false, user: null, entries: [], customFoods: [], allFoods: mockFoods });
+    clearSession();
+    setState(loadAppState());
   }, []);
 
   const completeOnboarding = useCallback((profile: Omit<UserProfile, 'id' | 'targets'>) => {
     const targets = calculateTargets(profile);
-    setState(s => ({ ...s, user: { ...profile, id: generateId(), targets } }));
+    setState(updateCurrentModeState(current => ({
+      ...current,
+      user: { ...profile, id: generateId(), targets },
+    })));
   }, []);
 
   const addEntry = useCallback((entry: Omit<DiaryEntry, 'id' | 'createdAt'>) => {
     const newEntry: DiaryEntry = { ...entry, id: generateId(), createdAt: new Date().toISOString() };
-    setState(s => ({ ...s, entries: [...s.entries, newEntry] }));
+    setState(updateCurrentModeState(current => ({
+      ...current,
+      entries: [...current.entries, newEntry],
+    })));
   }, []);
 
   const updateEntry = useCallback((id: string, updates: Partial<DiaryEntry>) => {
-    setState(s => ({ ...s, entries: s.entries.map(e => e.id === id ? { ...e, ...updates } : e) }));
+    setState(updateCurrentModeState(current => ({
+      ...current,
+      entries: current.entries.map(e => e.id === id ? { ...e, ...updates } : e),
+    })));
   }, []);
 
   const deleteEntry = useCallback((id: string) => {
-    setState(s => ({ ...s, entries: s.entries.filter(e => e.id !== id) }));
+    setState(updateCurrentModeState(current => ({
+      ...current,
+      entries: current.entries.filter(e => e.id !== id),
+    })));
   }, []);
 
   const addCustomFood = useCallback((food: Omit<Food, 'id' | 'source' | 'category'>) => {
     const newFood: Food = { ...food, id: generateId(), source: 'custom', category: 'custom' };
-    setState(s => ({ ...s, customFoods: [...s.customFoods, newFood], allFoods: [...s.allFoods, newFood] }));
+    setState(updateCurrentModeState(current => ({
+      ...current,
+      customFoods: [...current.customFoods, newFood],
+    })));
   }, []);
 
   const updateTargets = useCallback((targets: MacroTargets) => {
-    setState(s => s.user ? { ...s, user: { ...s.user, targets } } : s);
+    setState(updateCurrentModeState(current => current.user ? {
+      ...current,
+      user: { ...current.user, targets },
+    } : current));
   }, []);
 
   const updateProfile = useCallback((updates: Partial<UserProfile>) => {
-    setState(s => s.user ? { ...s, user: { ...s.user, ...updates } } : s);
+    setState(updateCurrentModeState(current => current.user ? {
+      ...current,
+      user: { ...current.user, ...updates },
+    } : current));
   }, []);
 
   const getEntriesForDate = useCallback((date: string) => {
